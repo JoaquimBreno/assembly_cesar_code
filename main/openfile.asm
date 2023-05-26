@@ -7,7 +7,7 @@ section .bss
     user_input resb 256     ; buffer para armazenar a entrada do usuário
     user_output resb 256  
 section .data
-    buffer_size equ 512
+    buffer_size dd 0
     ;buffer db 100           ; tamanho máximo do buffer
     format db "%s\n", 0    ; formato de entrada para a função scanf
     format_out db "%s", 10,0   ; formato de saída para a função printf
@@ -33,6 +33,50 @@ erro:
     push message
     call printf
     add esp, 8
+
+    mov esp,ebp
+    pop ebp
+    ret 4
+
+loop_start:
+
+    mov al, byte [esi]
+    cmp al, 0
+    je write_file
+
+    inc esi
+    jmp loop_start
+
+write_file: 
+    ;Calcula o tamanho da string subtraindo o endereço anterior como o incrementado
+    sub esi,ecx
+    cmp esi, 0
+    je erro
+    
+    mov [buffer_size], esi
+
+    push buffer_size
+    push format_d
+    call printf
+    add esp, 8
+    ; ESCREVER NO ARQUIVO
+    xor eax,eax
+    xor eax, eax
+    mov eax, 4          
+    mov ebx, [outputHandle]       
+    mov ecx, buffer    
+    mov edx, [buffer_size] 
+    int 80h
+
+    
+    ; Verificar se ocorreu um erro durante a escrita
+    cmp eax, -1
+    jl erro
+
+    ; Fechar o arquivo
+    mov eax, 6          ; sys_close
+    mov ebx, [outputHandle]       ; Handle do arquivo
+    int 80h
 
     mov esp,ebp
     pop ebp
@@ -115,29 +159,11 @@ read_file:
     cmp eax, -1
     je erro
 
- 
-    ; ESCREVER NO ARQUIVO
-    xor eax, eax
-    mov eax, 4          
-    mov ebx, [outputHandle]       
-    mov ecx, buffer    
-    mov edx, buffer_size 
-    int 80h
-
-    
-    ; Verificar se ocorreu um erro durante a escrita
-    cmp eax, -1
-    jl erro
-
-    ; Fechar o arquivo
-    mov eax, 6          ; sys_close
-    mov ebx, [outputHandle]       ; Handle do arquivo
-    int 80h
-
-    mov esp,ebp
-    pop ebp
-    ret 4
-
+    ; Carrega buffer size
+    mov esi, buffer
+    xor ecx,ecx
+    mov ecx,esi
+    jmp loop_start
     
 main:
     xor eax, eax    
