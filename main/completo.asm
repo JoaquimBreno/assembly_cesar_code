@@ -45,6 +45,7 @@ includelib \masm32\lib\masm32.lib
 codificar:
     push ebp
     mov ebp, esp
+    
 
     ; Abrir o arquivo de entrada
     invoke CreateFile, addr inputFile, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL
