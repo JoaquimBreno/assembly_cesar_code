@@ -4,13 +4,14 @@ extern printf, scanf
 
 section .bss
     buffer resb 512
-    new_string resb 512
     user_input resb 256     ; buffer para armazenar a entrada do usuário
     user_output resb 256  
 section .data
     buffer_size dd 0
     dcrypt_key dd 0
     read_bytes dd 0
+    size equ 512 
+    new_string db size dup(0)
     format db "%s\n", 0    ; formato de entrada para a função scanf string
     format_out db "%s", 10,0   ; formato de saída para a função printf string
     format_dkey db "%d", 0    ; formato de entrada 
@@ -104,12 +105,11 @@ read_file:
     cmp eax, -1
     je erro
 
-    ; Fechar o arquivo
-    xor eax, eax
-    mov eax, 6          ; sys_close
-    mov ebx, [fileHandle]       ; Handle do arquivo
-    int 80h
-
+    ; EXIBE O QUE TEM NO EAX
+    push eax
+    push format_d
+    call printf
+    add esp, 8  
     ; EXIBE O QUE TEM NO ARQUIVO DE ENTRADA
     push buffer
     push format_out
@@ -144,26 +144,27 @@ read_file:
         inc esi
         jmp loop_strlen
     
-        calculate_file: 
 
-            ;Calcula o tamanho da string subtraindo o endereço anterior como o incrementado
-            sub esi,ecx
-            cmp esi, 0
-            je erro
+    calculate_file: 
+        ;Calcula o tamanho da string subtraindo o endereço anterior como o incrementado
+        sub esi,ecx
+        cmp esi, 0
+        je erro
 
-            modify_string:
-                mov [buffer_size], esi
-                xor esi, esi
-                xor ecx, ecx
- 
-                mov ebx, 2
-                mov edi, buffer     
-                mov esi, new_string  
-                mov ecx, DWORD [buffer_size] 
+        mov [buffer_size], esi
 
+        modify_string:
+            
+            xor esi, esi
+            xor ecx, ecx
+
+            mov ebx, 2
+            mov edi, buffer     
+            mov esi, new_string  
+            mov ecx, DWORD [buffer_size] 
 
             modify_loop:
-                
+                ;LOOP PARA DESCRIPTOGRAFAR BUFFER
                 mov al, byte[edi]
                 add al, bl
                 mov [esi], al
@@ -171,39 +172,31 @@ read_file:
                 inc esi
                 dec ecx
 
-                push ecx
-                push format_d   
-                call printf        
-                add esp, 8  
+                cmp ecx, 0
+                jne modify_loop
 
 
-            write_file:
-                mov [new_string], esi
+        write_file:
+            ; ESCREVER NO ARQUIVO
+            xor eax,eax
+            xor eax, eax
+            mov eax, 4          
+            mov ebx, [outputHandle]       
+            mov ecx, new_string    
+            mov edx, [buffer_size] 
+            int 80h
+            
+            ; Verificar se ocorreu um erro durante a escrita
+            cmp eax, -1
+            jl erro
 
-                push buffer_size
-
-
-                ; ESCREVER NO ARQUIVO
-                xor eax,eax
-                xor eax, eax
-                mov eax, 4          
-                mov ebx, [outputHandle]       
-                mov ecx, new_string    
-                mov edx, [buffer_size] 
-                int 80h
-                
-                ; Verificar se ocorreu um erro durante a escrita
-                cmp eax, -1
-                jl erro
-
-                ; Fechar o arquivo
-                mov eax, 6          ; sys_close
-                mov ebx, [outputHandle]       ; Handle do arquivo
-                int 80h
-
-                mov esp,ebp
-                pop ebp
-                ret 4
+            ; Fechar o arquivo
+            mov eax, 6          ; sys_close
+            mov ebx, [outputHandle]       ; Handle do arquivo
+            int 80h
+    mov esp, ebp
+    pop ebp
+    ret 4
 
     
 main:
